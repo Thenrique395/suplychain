@@ -2,10 +2,12 @@ using Microsoft.AspNetCore.Mvc;
 using SupplyChain.Application;
 using SupplyChain.Domain;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 
 namespace SupplyChain.Api.Controllers;
 
+[AllowAnonymous]
 [ApiController]
 [Route("api/[controller]")]
 public class AuthController : ControllerBase

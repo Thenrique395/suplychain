@@ -130,3 +130,4 @@
 /Users/henriquesantos/Desktop/code/supplychain/supplychain/obj/Debug/net8.0/supplychain.pdb
 /Users/henriquesantos/Desktop/code/supplychain/supplychain/obj/Debug/net8.0/supplychain.genruntimeconfig.cache
 /Users/henriquesantos/Desktop/code/supplychain/supplychain/obj/Debug/net8.0/ref/supplychain.dll
+/Users/henriquesantos/Desktop/code/supplychain/supplychain/obj/Debug/net8.0/supplychain.sourcelink.json

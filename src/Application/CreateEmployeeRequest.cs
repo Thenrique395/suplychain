@@ -1,20 +1,18 @@
-using System;
-using System.Collections.Generic;
 using SupplyChain.Domain;
 
 namespace SupplyChain.Application;
 
 public class CreateEmployeeRequest
 {
-    public string FirstName { get; set; } = null!;
-    public string LastName { get; set; } = null!;
-    public string Email { get; set; } = null!;
-    public string DocNumber { get; set; } = null!;
-    public DateTime BirthDate { get; set; }
-    public Role Role { get; set; } = Role.Employee;
-    public List<string> Phones { get; set; } = new();
+    public string FirstName { get; init; } = null!;
+    public string LastName { get; init; } = null!;
+    public string Email { get; init; } = null!;
+    public string DocNumber { get; init; } = null!;
+    public DateTime BirthDate { get; init; }
+    public Role Role { get; init; } = Role.Employee;
+    public List<string> Phones { get; init; } = [];
     public Guid? ManagerId { get; set; }
-    public string Password { get; set; } = null!;
+    public string Password { get; init; } = null!;
 }
 
 public class EmployeeResponse

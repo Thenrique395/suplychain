@@ -5,11 +5,9 @@ using System.Text.Json;
 
 namespace SupplyChain.Infrastructure;
 
-public class AppDbContext : DbContext
+public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
     public DbSet<Employee> Employees { get; set; } = null!;
-
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -23,8 +21,6 @@ public class AppDbContext : DbContext
                 .HasConversion(
                     v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                     v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>());
-
-            // BirthDate é DateTimeOffset, não precisa de conversão
         });
 
         // Converte globalmente DateTime (não DateTimeOffset) para UTC

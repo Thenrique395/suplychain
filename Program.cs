@@ -1,88 +1,153 @@
-
-using Microsoft.EntityFrameworkCore;
-using Serilog;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using SupplyChain.Infrastructure;
-using SupplyChain.Application;
+using Serilog;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 
+using SupplyChain.Infrastructure;
+using SupplyChain.Application;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Serilog
+// --------------------------------------------------
+// LOGGING (SERILOG)
+// --------------------------------------------------
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
+
 builder.Host.UseSerilog();
 
-// Configuration and DB
+// --------------------------------------------------
+// CONFIGURATION
+// --------------------------------------------------
 var configuration = builder.Configuration;
-//var conn = configuration.GetValue<string>("ConnectionStrings:Default") 
-  //  ?? "Host=localhost;Database=employees;Username=postgres;Password=Pass@123";
 
-  //var conn = configuration.GetValue<string>("ConnectionStrings:Default") ?? "Host=192.168.1.85;Port=5432;Database=employees;Username=postgres;Password=Pass@123";
+var connectionString =
+    configuration.GetValue<string>("ConnectionStrings:Default")
+    ?? "Host=db;Port=5432;Database=employees;Username=postgres;Password=Pass@123";
 
-  var conn = configuration.GetValue<string>("ConnectionStrings:Default") ?? "Host=db;Port=5432;Database=employees;Username=postgres;Password=Pass@123";
+// --------------------------------------------------
+// DATABASE
+// --------------------------------------------------
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(connectionString));
 
-// Add DbContext using Npgsql
-builder.Services.AddDbContext<AppDbContext>(opt =>
-    opt.UseNpgsql(conn));
-
-// FluentValidation
+// --------------------------------------------------
+// CONTROLLERS + VALIDATION
+// --------------------------------------------------
 builder.Services.AddControllers()
-    .AddFluentValidation(cfg => cfg.RegisterValidatorsFromAssemblyContaining<Program>());
+    .AddFluentValidation(cfg =>
+        cfg.RegisterValidatorsFromAssemblyContaining<Program>());
 
-// Add services
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
+// --------------------------------------------------
+// DEPENDENCY INJECTION
+// --------------------------------------------------
 builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
-// JWT
-var jwtKey = builder.Configuration.GetValue<string>("Jwt:Key") ?? "VerySecretKey_DoNotUseInProd_ChangeMe";
-var key = Encoding.UTF8.GetBytes(jwtKey);
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(o =>
-{
-    o.TokenValidationParameters = new TokenValidationParameters
+// --------------------------------------------------
+// SWAGGER
+// --------------------------------------------------
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+// --------------------------------------------------
+// AUTHENTICATION (JWT)
+// --------------------------------------------------
+var jwtKey =
+    configuration.GetValue<string>("Jwt:Key")
+    ?? "VerySecretKey_DoNotUseInProd_ChangeMe";
+
+var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
     {
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(key),
-        ValidateIssuer = false,
-        ValidateAudience = false
-    };
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = signingKey,
+            ValidateIssuer = false,
+            ValidateAudience = false
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+// --------------------------------------------------
+// CORS (ANGULAR FRONTEND)
+// --------------------------------------------------
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy =>
+    {
+        policy
+            .WithOrigins("http://localhost:4200")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
 });
 
-// Register validators assembly scanning (Application should contain validators)
-builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+// --------------------------------------------------
+// HOST / PORT
+// --------------------------------------------------
 builder.WebHost.UseUrls("http://0.0.0.0:5000");
 
 var app = builder.Build();
 
-// Apply migrations at startup
+// --------------------------------------------------
+// DATABASE MIGRATIONS (RETRY SAFE)
+// --------------------------------------------------
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
+
+    const int maxRetries = 10;
+    var attempt = 0;
+
+    while (true)
+    {
+        try
+        {
+            Console.WriteLine($"Applying migrations... Attempt {attempt + 1}/{maxRetries}");
+            db.Database.Migrate();
+            Console.WriteLine("Migrations applied successfully.");
+            break;
+        }
+        catch (Exception ex)
+        {
+            attempt++;
+
+            if (attempt >= maxRetries)
+                throw;
+
+            Console.WriteLine($"Migration failed: {ex.Message}");
+            Console.WriteLine("Retrying in 5 seconds...");
+            Thread.Sleep(5000);
+        }
+    }
 }
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
+// --------------------------------------------------
+// MIDDLEWARE PIPELINE (ORDER MATTERS)
+// --------------------------------------------------
 app.UseSerilogRequestLogging();
+
 app.UseRouting();
+
+app.UseCors("Frontend"); // ⬅️ CORS ANTES de Auth
+
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseSwagger();
+app.UseSwaggerUI();
+
 app.MapControllers();
 
 app.Run();
