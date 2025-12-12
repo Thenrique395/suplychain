@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "z02CI1Q6cWM3Msf96qs17e2YILfuMDPKS5RXgiY7wGY=",
+  "Source": "supplychain",
+  "BasePath": "_content/supplychain",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}

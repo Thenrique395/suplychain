@@ -1,0 +1,44 @@
+version: '3.9'
+
+services:
+
+  api:
+    build: ./
+    container_name: supplychain-api
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Default: "Host=db;Port=5432;Database=employees;Username=postgres;Password=Pass@123"
+      Jwt__Key: "VerySecretKey_DoNotUseInProd_ChangeMe"
+      ASPNETCORE_ENVIRONMENT: Development
+    networks:
+      - appnet
+
+  db:
+    image: postgres:15-alpine
+    container_name: supplychain-db
+    environment:
+      POSTGRES_DB: employees
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Pass@123
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - appnet
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+
+networks:
+  appnet:
+    driver: bridge
