@@ -9,6 +9,7 @@ using FluentValidation.AspNetCore;
 using SupplyChain.Infrastructure;
 using SupplyChain.Application;
 using Microsoft.OpenApi.Models;
+using SupplyChain.Domain;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -138,6 +139,8 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var repo = scope.ServiceProvider.GetRequiredService<IEmployeeRepository>();
+    var auth = scope.ServiceProvider.GetRequiredService<IAuthService>();
 
     const int maxRetries = 10;
     var attempt = 0;
@@ -149,6 +152,30 @@ using (var scope = app.Services.CreateScope())
             Console.WriteLine($"Applying migrations... Attempt {attempt + 1}/{maxRetries}");
             db.Database.Migrate();
             Console.WriteLine("Migrations applied successfully.");
+
+            if (!await db.Employees.AnyAsync())
+            {
+                var defaultPassword = configuration.GetValue<string>("Seed:AdminPassword") ?? "ChangeMe123!";
+                var admin = new Employee
+                {
+                    FirstName = configuration.GetValue<string>("Seed:AdminFirstName") ?? "Melissa",
+                    LastName = configuration.GetValue<string>("Seed:AdminLastName") ?? "Costa",
+                    Email = configuration.GetValue<string>("Seed:AdminEmail") ?? "melissa.costa@company.com",
+                    DocNumber = configuration.GetValue<string>("Seed:AdminDoc") ?? "MELISSA-001",
+                    BirthDate = DateTime.UtcNow.AddYears(-30),
+                    Role = Role.Director,
+                    Phones = new List<string>
+                    {
+                        configuration.GetValue<string>("Seed:AdminPhone1") ?? "+55 11 99999-0000",
+                        configuration.GetValue<string>("Seed:AdminPhone2") ?? "+55 11 98888-1111"
+                    },
+                    PasswordHash = auth.HashPassword(defaultPassword)
+                };
+
+                await repo.AddAsync(admin);
+                Console.WriteLine("Seeded default admin user (DocNumber: {0})", admin.DocNumber);
+            }
+
             break;
         }
         catch (Exception ex)

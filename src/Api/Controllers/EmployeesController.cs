@@ -2,10 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SupplyChain.Application;
 using SupplyChain.Domain;
-using System;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Collections.Generic;
 
 namespace SupplyChain.Api.Controllers;
 
@@ -101,6 +97,8 @@ public class EmployeesController : ControllerBase
         var existing = await _repo.GetByIdAsync(id);
         if (existing == null) return NotFound();
 
+        if (req.Phones == null || req.Phones.Count < 2) return BadRequest("Must have at least 2 phones");
+        if (req.BirthDate > DateTime.UtcNow.AddYears(-18)) return BadRequest("Underage not allowed");
         if (req.Role > CurrentRole) return Forbid("You cannot set a role higher than yours.");
 
         existing.FirstName = req.FirstName;
