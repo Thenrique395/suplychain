@@ -15,7 +15,12 @@ namespace SupplyChain.Api.Controllers;
 public class EmployeesController : ControllerBase
 {
     private readonly IEmployeeRepository _repo;
-    public EmployeesController(IEmployeeRepository repo) => _repo = repo;
+    private readonly IAuthService _auth;
+    public EmployeesController(IEmployeeRepository repo, IAuthService auth)
+    {
+        _repo = repo;
+        _auth = auth;
+    }
 
     private Role CurrentRole
     {
@@ -60,6 +65,7 @@ public class EmployeesController : ControllerBase
         if (req.Phones == null || req.Phones.Count < 2) return BadRequest("Must have at least 2 phones");
         if (req.BirthDate > DateTime.UtcNow.AddYears(-18)) return BadRequest("Underage not allowed");
         if (req.Role > CurrentRole) return Forbid("You cannot create employee with higher role");
+        if (string.IsNullOrWhiteSpace(req.Password)) return BadRequest("Password is required");
 
         var exists = await _repo.GetByDocAsync(req.DocNumber);
         if (exists != null) return BadRequest("Doc already exists");
@@ -74,7 +80,7 @@ public class EmployeesController : ControllerBase
             Role = req.Role,
             Phones = req.Phones,
             ManagerId = req.ManagerId,
-            PasswordHash = "" // For simplicity; use register for password
+            PasswordHash = _auth.HashPassword(req.Password)
         };
 
         await _repo.AddAsync(e);
@@ -103,6 +109,10 @@ public class EmployeesController : ControllerBase
         existing.Phones = req.Phones;
         existing.ManagerId = req.ManagerId;
         existing.Role = req.Role;
+        if (!string.IsNullOrWhiteSpace(req.Password))
+        {
+            existing.PasswordHash = _auth.HashPassword(req.Password);
+        }
 
         await _repo.UpdateAsync(existing);
         return NoContent();
