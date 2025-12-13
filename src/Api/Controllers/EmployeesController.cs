@@ -32,19 +32,26 @@ public class EmployeesController : ControllerBase
         var list = await _repo.GetAllAsync();
         if (!string.IsNullOrWhiteSpace(search))
         {
-            list = list.Where(e => e.FirstName.Contains(search, StringComparison.OrdinalIgnoreCase)
-                                || e.LastName.Contains(search, StringComparison.OrdinalIgnoreCase)
-                                || e.Email.Contains(search, StringComparison.OrdinalIgnoreCase)
-                                || e.DocNumber.Contains(search, StringComparison.OrdinalIgnoreCase));
+            list = list.Where(e =>
+                (!string.IsNullOrWhiteSpace(e.FirstName) && e.FirstName.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrWhiteSpace(e.LastName) && e.LastName.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrWhiteSpace(e.Email) && e.Email.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrWhiteSpace(e.DocNumber) && e.DocNumber.Contains(search, StringComparison.OrdinalIgnoreCase)));
         }
 
         var total = list.Count();
         var items = list.Skip((page - 1) * pageSize).Take(pageSize)
             .Select(e => new {
-                e.Id, FullName = e.FirstName + " " + e.LastName, e.Email, e.Role
+                e.Id,
+                e.FirstName,
+                e.LastName,
+                e.Email,
+                e.DocNumber,
+                e.Role,
+                e.Phones
             });
 
-        return Ok(new { total, page, pageSize, items });
+        return Ok(new { totalCount = total, page, pageSize, items });
     }
 
     [HttpPost]
